@@ -328,6 +328,7 @@
     // side so the next-viewer logic can pick the right voter. Not sensitive.
     if (prompt.voters)   safe.voters   = prompt.voters.slice();
     if (prompt.collected) safe.collected = Object.assign({}, prompt.collected);
+    if (prompt.preview)  safe.preview  = { cardIds: prompt.preview.cardIds.slice() };
     return safe;
   }
 
@@ -356,6 +357,22 @@
         state.activePrompt.forPlayer === -1;
       if (!allowed) return fail('Not your prompt.');
       return runWithEvents(state, () => resolvePrompt(state, playerIndex, intent.value));
+    }
+
+    // Preview channel — defender of a CRISIS_CARDS prompt streams their
+    // in-progress selection so spectators see live updates. Does not advance
+    // state and never logs; the host still re-broadcasts the view.
+    if (intent.type === 'PROMPT_PREVIEW') {
+      if (!state.activePrompt) return fail('No prompt is active.');
+      if (state.activePrompt.id !== intent.promptId) return fail('Prompt id mismatch (stale).');
+      if (state.activePrompt.kind !== 'CRISIS_CARDS') return fail('Preview not supported for this prompt.');
+      if (state.activePrompt.forPlayer !== playerIndex) return fail('Not your prompt.');
+      const handIds = new Set((state.activePrompt.payload.hand || []).map(c => c.id));
+      const cardIds = (intent.value && Array.isArray(intent.value.cardIds))
+        ? intent.value.cardIds.filter(id => handIds.has(id))
+        : [];
+      state.activePrompt.preview = { cardIds };
+      return { ok: true, events: [] };
     }
 
     // Top-level intents are blocked while a prompt is active.

@@ -857,14 +857,25 @@ const SPECTATOR_KINDS = new Set(['CRISIS_CARDS', 'PEER_VOTE', 'BOSS_ANSWER']);
 
 function renderPromptModal(v, myIdx) {
   const existing = $('promptModal');
-  if (existing) existing.remove();
-  if (!v.activePrompt || v.winner) return;
+  if (!v.activePrompt || v.winner) {
+    if (existing) existing.remove();
+    return;
+  }
   const ap = v.activePrompt;
 
   // Active player path
   if (ap.youMustAct) {
+    // The defender's DOM holds in-progress selection state (e.g. the chosen
+    // crisis cards). Re-rendering would wipe it, so for the same prompt id
+    // we leave the existing modal alone.
+    if (existing && existing.dataset.promptId === ap.id && existing.dataset.role === 'active') {
+      return;
+    }
+    if (existing) existing.remove();
     const m = document.createElement('div');
     m.className = 'modal'; m.id = 'promptModal';
+    m.dataset.promptId = ap.id;
+    m.dataset.role = 'active';
     m.innerHTML = renderPromptContent(ap, v, myIdx);
     document.body.appendChild(m);
     wirePromptHandlers(m, ap);
@@ -877,14 +888,27 @@ function renderPromptModal(v, myIdx) {
   // staring at a modal they can't interact with on their own crisis.
   if (SPECTATOR_KINDS.has(ap.kind)) {
     if (ap.kind === 'PEER_VOTE' && ap.payload.defenderIndex === myIdx) {
+      if (existing) existing.remove();
       return;
     }
+    // Same prompt → update innerHTML in place so live preview ticks don't
+    // flicker the whole modal.
+    if (existing && existing.dataset.promptId === ap.id && existing.dataset.role === 'spectator') {
+      existing.innerHTML = renderSpectatorContent(ap, v, myIdx);
+      return;
+    }
+    if (existing) existing.remove();
     const m = document.createElement('div');
     m.className = 'modal'; m.id = 'promptModal';
+    m.dataset.promptId = ap.id;
+    m.dataset.role = 'spectator';
     m.innerHTML = renderSpectatorContent(ap, v, myIdx);
     document.body.appendChild(m);
     // No handlers — spectator modals are read-only and auto-update on render.
+    return;
   }
+
+  if (existing) existing.remove();
 }
 
 function renderSpectatorContent(ap, v, myIdx) {
@@ -898,6 +922,17 @@ function renderSpectatorContent(ap, v, myIdx) {
 
 function spectatorCrisis(ap) {
   const defender = ap.payload.defenderName || 'Someone';
+  const hand = ap.payload.hand || [];
+  const selectedIds = (ap.preview && ap.preview.cardIds) || [];
+  const selectedCards = selectedIds
+    .map(id => hand.find(c => c.id === id))
+    .filter(Boolean);
+  const selectionBlock = selectedCards.length
+    ? `<div style="margin-top:14px; padding:10px 14px; background:var(--panel-2); border-radius:6px; border-left:3px solid var(--good);">
+         <div style="font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:1px; margin-bottom:6px;">Currently choosing (${selectedCards.length})</div>
+         <div style="font-size:14px; line-height:1.6;">${selectedCards.map(c => `<div>• <b>${escapeHtml(c.name)}</b> <span style="color:var(--muted); font-size:11px;">(${escapeHtml(c.type)})</span></div>`).join('')}</div>
+       </div>`
+    : `<div style="margin-top:14px; padding:10px 14px; background:var(--panel-2); border-radius:6px; border-left:3px dashed var(--muted); font-size:12px; color:var(--muted); text-align:center;">${escapeHtml(defender)} hasn't picked any cards yet…</div>`;
   return `<div class="modal-content" style="border:4px solid var(--danger); max-width:560px; box-shadow:0 0 40px rgba(255,107,107,0.3);">
     <div style="text-align:center; padding:8px 0;">
       <div style="font-size:42px; line-height:1;">⚠️</div>
@@ -906,8 +941,9 @@ function spectatorCrisis(ap) {
     </div>
     <p style="font-style:italic; color:var(--muted); font-size:13px; padding:10px 14px; background:var(--panel-2); border-radius:6px; line-height:1.5;">${escapeHtml(ap.payload.crisisFlavour || '')}</p>
     <p style="margin-top:14px; font-size:14px; text-align:center;"><b>${escapeHtml(defender)}</b> is choosing cards from their hand to address this disaster.</p>
-    <p style="color:var(--muted); font-size:12px; text-align:center;">Listen to their explanation — when they're done, you'll vote on whether it makes sense.</p>
-    <p style="text-align:center; color:var(--accent); font-size:12px; margin-top:16px;">⏳ Waiting for ${escapeHtml(defender)}…</p>
+    ${selectionBlock}
+    <p style="color:var(--muted); font-size:12px; text-align:center; margin-top:14px;">Listen to their explanation — when they're done, you'll vote on whether it makes sense.</p>
+    <p style="text-align:center; color:var(--accent); font-size:12px; margin-top:8px;">⏳ Waiting for ${escapeHtml(defender)}…</p>
   </div>`;
 }
 
@@ -1119,6 +1155,13 @@ function wirePromptHandlers(m, ap) {
       const sel = new Set();
       const counter = m.querySelector('#crisisCounter');
       const confirm = m.querySelector('#crisisConfirm');
+      const sendPreview = () => {
+        transport.dispatch({
+          type: 'PROMPT_PREVIEW',
+          promptId: ap.id,
+          value: { cardIds: [...sel] },
+        });
+      };
       m.querySelectorAll('#crisisList button').forEach(b => {
         b.onclick = () => {
           const id = b.dataset.id;
@@ -1133,6 +1176,7 @@ function wirePromptHandlers(m, ap) {
             counter.textContent = 'Need at least 1.';
             confirm.disabled = true;
           }
+          sendPreview();
         };
       });
       confirm.onclick = () => respond({ cardIds: [...sel] });
