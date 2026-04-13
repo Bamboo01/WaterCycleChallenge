@@ -3,11 +3,10 @@
 A browser card game about Singapore's water cycle, built for a school project (CSD2150 USI).
 2–4 players, ages 7–12, 20 minutes.
 
-Vibecoded with Claude. I am taking the aura loss.
+Vibecoded with Claude. Almost everything here is by Claude, actually. Insane aura loss, I know.
 
 ## Play it
-
-[Live link goes here once GitHub Pages is set up]
+https://bamboo01.github.io/WaterCycleChallenge/water_cycle_challenge.html
 
 Three modes:
 - **Local Hotseat** — one device, pass it around the table.
@@ -137,4 +136,4 @@ Should print `23/23 passed`. Covers determinism, view redaction, every weather e
 
 ## Credit
 
-Game design: mine. Code: vibecoded with Claude (Sonnet 4.5 / Opus 4.6). Singapore water facts: PUB and the NLB Infopedia. Aura loss: also mine.
+Game design: mine. Code: vibecoded with Claude  Opus 4.6. Singapore water facts: PUB and the NLB Infopedia. Aura loss: also mine.
