@@ -850,18 +850,88 @@ function renderLog(v) {
 // PROMPT MODALS
 // =============================================================
 
+// Prompt kinds that get a passive "spectator" modal so non-acting players
+// see what's happening (instead of staring at a frozen board waiting for
+// the active player to do something invisible).
+const SPECTATOR_KINDS = new Set(['CRISIS_CARDS', 'PEER_VOTE', 'BOSS_ANSWER']);
+
 function renderPromptModal(v, myIdx) {
   const existing = $('promptModal');
   if (existing) existing.remove();
   if (!v.activePrompt || v.winner) return;
   const ap = v.activePrompt;
-  if (!ap.youMustAct) return;
 
-  const m = document.createElement('div');
-  m.className = 'modal'; m.id = 'promptModal';
-  m.innerHTML = renderPromptContent(ap, v, myIdx);
-  document.body.appendChild(m);
-  wirePromptHandlers(m, ap);
+  // Active player path
+  if (ap.youMustAct) {
+    const m = document.createElement('div');
+    m.className = 'modal'; m.id = 'promptModal';
+    m.innerHTML = renderPromptContent(ap, v, myIdx);
+    document.body.appendChild(m);
+    wirePromptHandlers(m, ap);
+    return;
+  }
+
+  // Spectator path — only for the slow/important prompts. Quick prompts
+  // like PICK_TARGET resolve in a click and don't need spectator UI.
+  if (SPECTATOR_KINDS.has(ap.kind)) {
+    const m = document.createElement('div');
+    m.className = 'modal'; m.id = 'promptModal';
+    m.innerHTML = renderSpectatorContent(ap, v, myIdx);
+    document.body.appendChild(m);
+    // No handlers — spectator modals are read-only and auto-update on render.
+  }
+}
+
+function renderSpectatorContent(ap, v, myIdx) {
+  switch (ap.kind) {
+    case 'CRISIS_CARDS': return spectatorCrisis(ap);
+    case 'PEER_VOTE':    return spectatorVote(ap, v, myIdx);
+    case 'BOSS_ANSWER':  return spectatorBoss(ap, v);
+    default: return '';
+  }
+}
+
+function spectatorCrisis(ap) {
+  const defender = ap.payload.defenderName || 'Someone';
+  return `<div class="modal-content" style="border:3px solid var(--danger); max-width:520px;">
+    <h3 style="color:var(--danger); margin-top:0;">⚠️ CRISIS — ${escapeHtml(ap.payload.crisisName)}</h3>
+    <p style="font-style:italic; color:var(--muted); font-size:12px;">${escapeHtml(ap.payload.crisisFlavour || '')}</p>
+    <p style="margin-top:14px; font-size:14px;"><b>${escapeHtml(defender)}</b> drew this Crisis and is selecting cards from their hand.</p>
+    <p style="color:var(--muted); font-size:12px;">Listen to their explanation. You'll get to vote on whether it makes sense.</p>
+    <p style="text-align:center; color:var(--accent); font-size:12px; margin-top:14px;">⏳ Waiting for ${escapeHtml(defender)}…</p>
+  </div>`;
+}
+
+function spectatorVote(ap, v, myIdx) {
+  const defender = ap.payload.defenderName;
+  const voters = ap.voters || [];
+  const collected = ap.collected || {};
+  const votedCount = voters.filter(idx => collected[idx] !== undefined).length;
+  const cardsList = ap.payload.cardsSpent.map(c => c.name).join(' + ');
+  const isDefender = (myIdx === ap.payload.defenderIndex);
+  const youAlreadyVoted = collected[myIdx] !== undefined;
+  const yourVote = collected[myIdx];
+  const headline = isDefender
+    ? `🗣️ Awaiting peer check on your explanation`
+    : (youAlreadyVoted
+        ? `🗣️ You voted ${yourVote ? '👍' : '👎'} — waiting for the others`
+        : `🗣️ Peer Check`);
+  return `<div class="modal-content" style="text-align:center; max-width:520px;">
+    <h3 style="color:var(--accent); margin-top:0;">${headline}</h3>
+    <p style="font-size:14px;"><b>${escapeHtml(defender)}</b> spent <b>${escapeHtml(cardsList)}</b> against <b>${escapeHtml(ap.payload.crisisName)}</b>.</p>
+    <p style="color:var(--muted); font-size:12px;">Votes in: ${votedCount}/${voters.length}</p>
+    ${isDefender ? `<p style="color:var(--muted); font-size:12px;">You can't vote on your own crisis. Just watch.</p>` : ''}
+  </div>`;
+}
+
+function spectatorBoss(ap, v) {
+  const challenger = v.players[v.current].name;
+  return `<div class="modal-content" style="border:3px solid var(--danger); max-width:520px;">
+    <h3 style="color:var(--danger); margin-top:0;">⚔️ Boss Challenge</h3>
+    <p style="font-size:14px;"><b>${escapeHtml(challenger)}</b> is answering:</p>
+    <p style="font-size:14px; padding:10px; background:var(--panel-2); border-radius:4px; margin:10px 0;">${escapeHtml(ap.payload.question)}</p>
+    <p style="text-align:center; color:var(--accent); font-size:12px;">⏳ Waiting…</p>
+  </div>`;
 }
 
 function renderPromptContent(ap, v, myIdx) {
