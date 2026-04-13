@@ -873,7 +873,12 @@ function renderPromptModal(v, myIdx) {
 
   // Spectator path — only for the slow/important prompts. Quick prompts
   // like PICK_TARGET resolve in a click and don't need spectator UI.
+  // The defender of a peer vote is suppressed entirely — they shouldn't be
+  // staring at a modal they can't interact with on their own crisis.
   if (SPECTATOR_KINDS.has(ap.kind)) {
+    if (ap.kind === 'PEER_VOTE' && ap.payload.defenderIndex === myIdx) {
+      return;
+    }
     const m = document.createElement('div');
     m.className = 'modal'; m.id = 'promptModal';
     m.innerHTML = renderSpectatorContent(ap, v, myIdx);
@@ -893,34 +898,32 @@ function renderSpectatorContent(ap, v, myIdx) {
 
 function spectatorCrisis(ap) {
   const defender = ap.payload.defenderName || 'Someone';
-  return `<div class="modal-content" style="border:3px solid var(--danger); max-width:520px;">
-    <h3 style="color:var(--danger); margin-top:0;">⚠️ CRISIS — ${escapeHtml(ap.payload.crisisName)}</h3>
-    <p style="font-style:italic; color:var(--muted); font-size:12px;">${escapeHtml(ap.payload.crisisFlavour || '')}</p>
-    <p style="margin-top:14px; font-size:14px;"><b>${escapeHtml(defender)}</b> drew this Crisis and is selecting cards from their hand.</p>
-    <p style="color:var(--muted); font-size:12px;">Listen to their explanation. You'll get to vote on whether it makes sense.</p>
-    <p style="text-align:center; color:var(--accent); font-size:12px; margin-top:14px;">⏳ Waiting for ${escapeHtml(defender)}…</p>
+  return `<div class="modal-content" style="border:4px solid var(--danger); max-width:560px; box-shadow:0 0 40px rgba(255,107,107,0.3);">
+    <div style="text-align:center; padding:8px 0;">
+      <div style="font-size:42px; line-height:1;">⚠️</div>
+      <h2 style="color:var(--danger); margin:8px 0 4px 0; font-size:24px; letter-spacing:1px;">${escapeHtml(defender)} drew a CRISIS</h2>
+      <div style="font-size:32px; font-weight:700; color:var(--ink); margin:6px 0 12px 0;">${escapeHtml(ap.payload.crisisName)}</div>
+    </div>
+    <p style="font-style:italic; color:var(--muted); font-size:13px; padding:10px 14px; background:var(--panel-2); border-radius:6px; line-height:1.5;">${escapeHtml(ap.payload.crisisFlavour || '')}</p>
+    <p style="margin-top:14px; font-size:14px; text-align:center;"><b>${escapeHtml(defender)}</b> is choosing cards from their hand to address this disaster.</p>
+    <p style="color:var(--muted); font-size:12px; text-align:center;">Listen to their explanation — when they're done, you'll vote on whether it makes sense.</p>
+    <p style="text-align:center; color:var(--accent); font-size:12px; margin-top:16px;">⏳ Waiting for ${escapeHtml(defender)}…</p>
   </div>`;
 }
 
 function spectatorVote(ap, v, myIdx) {
+  // Defender of this crisis is suppressed upstream — this function is only
+  // ever called for non-defender voters who have already cast their vote.
   const defender = ap.payload.defenderName;
   const voters = ap.voters || [];
   const collected = ap.collected || {};
   const votedCount = voters.filter(idx => collected[idx] !== undefined).length;
   const cardsList = ap.payload.cardsSpent.map(c => c.name).join(' + ');
-  const isDefender = (myIdx === ap.payload.defenderIndex);
-  const youAlreadyVoted = collected[myIdx] !== undefined;
   const yourVote = collected[myIdx];
-  const headline = isDefender
-    ? `🗣️ Awaiting peer check on your explanation`
-    : (youAlreadyVoted
-        ? `🗣️ You voted ${yourVote ? '👍' : '👎'} — waiting for the others`
-        : `🗣️ Peer Check`);
   return `<div class="modal-content" style="text-align:center; max-width:520px;">
-    <h3 style="color:var(--accent); margin-top:0;">${headline}</h3>
+    <h3 style="color:var(--accent); margin-top:0;">🗣️ You voted ${yourVote ? '👍' : '👎'}</h3>
     <p style="font-size:14px;"><b>${escapeHtml(defender)}</b> spent <b>${escapeHtml(cardsList)}</b> against <b>${escapeHtml(ap.payload.crisisName)}</b>.</p>
-    <p style="color:var(--muted); font-size:12px;">Votes in: ${votedCount}/${voters.length}</p>
-    ${isDefender ? `<p style="color:var(--muted); font-size:12px;">You can't vote on your own crisis. Just watch.</p>` : ''}
+    <p style="color:var(--muted); font-size:12px;">Votes in: ${votedCount}/${voters.length} — waiting for the others.</p>
   </div>`;
 }
 
@@ -1049,12 +1052,15 @@ function promptCrisis(ap) {
 }
 
 function promptVote(ap, v, myIdx) {
-  const cardsList = ap.payload.cardsSpent.map(c => c.name).join(' + ');
-  return `<div class="modal-content" style="text-align:center;">
+  const cardsSpent = ap.payload.cardsSpent;
+  return `<div class="modal-content" style="text-align:center; max-width:520px;">
     <h3 style="color:var(--accent); margin-top:0;">🗣️ Peer Check — voting as ${escapeHtml(v.players[myIdx].name)}</h3>
-    <p style="font-size:14px;">Did <b>${escapeHtml(ap.payload.defenderName)}</b> convincingly explain how their cards solve <b>${escapeHtml(ap.payload.crisisName)}</b>?</p>
-    <p style="color:var(--muted); font-size:12px;">Cards spent: ${escapeHtml(cardsList)}</p>
-    <p style="color:var(--danger); font-size:11px;"><b>⚠️ Failed vote = entire hand wiped!</b></p>
+    <p style="font-size:15px; margin:8px 0;"><b>${escapeHtml(ap.payload.defenderName)}</b> drew <b style="color:var(--danger)">${escapeHtml(ap.payload.crisisName)}</b> and chose:</p>
+    <div style="display:flex; flex-wrap:wrap; gap:8px; justify-content:center; margin:10px 0 14px 0;">
+      ${cardsSpent.map(c => `<div style="padding:8px 12px; background:var(--panel-2); border-left:3px solid var(--accent); border-radius:4px; font-size:13px;"><b>${escapeHtml(c.name)}</b><br><span style="color:var(--muted); font-size:10px;">${c.type}</span></div>`).join('')}
+    </div>
+    <p style="font-size:13px;">Did their explanation convincingly address the crisis?</p>
+    <p style="color:var(--danger); font-size:11px; margin:6px 0;"><b>⚠️ Failed vote = their entire hand wiped!</b></p>
     <div style="display:flex; gap:10px; justify-content:center; margin-top:14px;">
       <button class="danger" id="voteNo">👎 Not quite</button>
       <button class="good" id="voteYes">👍 Good explanation</button>
