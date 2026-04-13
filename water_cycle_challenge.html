@@ -1,0 +1,1107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Water Cycle Challenge — Playable Demo</title>
+<style>
+  :root {
+    --bg: #0a1929;
+    --panel: #102a43;
+    --panel-2: #1a3a5c;
+    --ink: #e8f1f8;
+    --muted: #8aa4bd;
+    --accent: #3bc9db;
+    --warn: #ffd166;
+    --danger: #ff6b6b;
+    --good: #51cf66;
+    --evap: #ffb347;
+    --cond: #a0c4ff;
+    --precip: #4dabf7;
+    --collect: #69db7c;
+    --weather: #c084fc;
+    --crisis: #ff6b6b;
+    --emergency: #ffd43b;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; font-family: 'Segoe UI', system-ui, sans-serif;
+    background: linear-gradient(180deg, #061423 0%, #0a1929 100%);
+    color: var(--ink); min-height: 100vh; padding: 16px;
+  }
+  header {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 16px; padding-bottom: 12px;
+    border-bottom: 1px solid #1f3d5c;
+  }
+  h1 { margin: 0; font-size: 22px; letter-spacing: 0.5px; }
+  h1 .accent { color: var(--accent); }
+  .subtitle { color: var(--muted); font-size: 12px; }
+  .layout {
+    display: grid; grid-template-columns: 1fr 320px; gap: 16px;
+  }
+  @media (max-width: 900px) { .layout { grid-template-columns: 1fr; } }
+
+  .panel {
+    background: var(--panel); border: 1px solid #1f3d5c;
+    border-radius: 10px; padding: 14px; margin-bottom: 12px;
+  }
+  .panel h2 { margin: 0 0 10px 0; font-size: 14px; text-transform: uppercase;
+    letter-spacing: 1.5px; color: var(--muted); }
+
+  .players { display: flex; gap: 8px; flex-wrap: wrap; }
+  .player {
+    flex: 1; min-width: 140px; padding: 10px; border-radius: 8px;
+    background: var(--panel-2); border: 2px solid transparent;
+    cursor: pointer; transition: all 0.15s;
+  }
+  .player.active { border-color: var(--accent); box-shadow: 0 0 12px rgba(59,201,219,0.3); }
+  .player.out { opacity: 0.4; text-decoration: line-through; }
+  .player .name { font-weight: 600; font-size: 14px; }
+  .player .stats { font-size: 11px; color: var(--muted); margin-top: 4px; }
+  .trophy { color: var(--warn); }
+
+  .center-area {
+    display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px;
+    text-align: center;
+  }
+  .pile {
+    background: var(--panel-2); padding: 14px 8px; border-radius: 8px;
+    border: 1px dashed #2a4d73;
+  }
+  .pile .count { font-size: 28px; font-weight: 700; color: var(--accent); }
+  .pile .label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; }
+
+  .hand {
+    display: flex; gap: 8px; flex-wrap: wrap; min-height: 140px;
+    padding: 10px; background: #061423; border-radius: 8px;
+  }
+  .card {
+    width: 110px; min-height: 140px; padding: 10px; border-radius: 8px;
+    background: var(--panel-2); border: 2px solid #2a4d73; cursor: pointer;
+    display: flex; flex-direction: column; transition: transform 0.1s;
+    font-size: 11px; user-select: none;
+  }
+  .card:hover { transform: translateY(-4px); }
+  .card.selected { border-color: var(--accent); box-shadow: 0 0 10px var(--accent); }
+  .card.evap { border-top: 4px solid var(--evap); }
+  .card.cond { border-top: 4px solid var(--cond); }
+  .card.precip { border-top: 4px solid var(--precip); }
+  .card.collect { border-top: 4px solid var(--collect); }
+  .card.weather { border-top: 4px solid var(--weather); }
+  .card.emergency { border-top: 4px solid var(--emergency); background: #3a3015; }
+  .card-name { font-weight: 700; font-size: 13px; margin-bottom: 6px; }
+  .card-type { font-size: 9px; text-transform: uppercase; color: var(--muted); letter-spacing: 1px; }
+  .card-desc { color: var(--muted); margin-top: auto; line-height: 1.3; }
+
+  .actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+  button {
+    padding: 10px 14px; border-radius: 6px; border: none; cursor: pointer;
+    font-weight: 600; font-size: 13px; background: var(--accent); color: #061423;
+    transition: all 0.1s;
+  }
+  button:hover:not(:disabled) { filter: brightness(1.1); }
+  button:disabled { opacity: 0.4; cursor: not-allowed; }
+  button.secondary { background: var(--panel-2); color: var(--ink); border: 1px solid #2a4d73; }
+  button.danger { background: var(--danger); color: #fff; }
+  button.good { background: var(--good); color: #061423; }
+
+  .log {
+    height: 260px; overflow-y: auto; font-size: 12px; line-height: 1.5;
+    background: #061423; padding: 10px; border-radius: 6px;
+  }
+  .log div { padding: 3px 0; border-bottom: 1px solid #122a42; }
+  .log .crisis { color: var(--danger); font-weight: 600; }
+  .log .good { color: var(--good); }
+  .log .info { color: var(--muted); }
+
+  .modal {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.8);
+    display: flex; align-items: center; justify-content: center; z-index: 100;
+  }
+  .modal-content {
+    background: var(--panel); padding: 24px; border-radius: 10px;
+    max-width: 500px; width: 90%; border: 1px solid var(--accent);
+  }
+  .modal h3 { margin-top: 0; color: var(--accent); }
+
+  .setup-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 16px 0; }
+  .setup-grid button { padding: 20px; font-size: 16px; }
+
+  .hint-box {
+    background: #1a3015; border-left: 3px solid var(--warn);
+    padding: 10px; margin: 10px 0; font-size: 13px; border-radius: 4px;
+  }
+  .mode-btn {
+    background: var(--panel-2); color: var(--ink); border: 2px solid #2a4d73;
+    transition: all 0.15s;
+  }
+  .mode-btn.selected {
+    background: var(--accent); color: #061423;
+    border-color: var(--accent); box-shadow: 0 0 12px rgba(59,201,219,0.5);
+  }
+  .card { position: relative; }
+  .tooltip {
+    position: absolute; bottom: calc(100% + 6px); left: 50%; transform: translateX(-50%);
+    width: 220px; background: #0a1929; color: var(--ink);
+    border: 1px solid var(--accent); border-radius: 6px; padding: 10px;
+    font-size: 11px; line-height: 1.45; z-index: 50;
+    opacity: 0; pointer-events: none; transition: opacity 0.15s;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.6);
+  }
+  .tooltip::after {
+    content: ''; position: absolute; top: 100%; left: 50%; transform: translateX(-50%);
+    border: 5px solid transparent; border-top-color: var(--accent);
+  }
+  .tooltip .t-title { font-weight: 700; color: var(--accent); margin-bottom: 4px; font-size: 12px; }
+  .tooltip .t-rule { color: var(--muted); margin-bottom: 6px; font-style: italic; }
+  .tooltip .t-flavour { color: var(--ink); }
+  .card:hover .tooltip { opacity: 1; }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>Water Cycle <span class="accent">Challenge</span></h1>
+    <div class="subtitle">Hotseat demo · pass the device between players</div>
+  </div>
+  <button class="secondary" onclick="location.reload()">Reset</button>
+</header>
+
+<div id="setup" class="modal">
+  <div class="modal-content" style="max-width:520px;">
+    <h3>Water Cycle Challenge</h3>
+
+    <!-- Stage 1: choose mode -->
+    <div id="setupHub">
+      <p style="color:var(--muted); font-size:13px;">Pick how you want to play.</p>
+      <div class="setup-grid" style="margin-top:14px;">
+        <button onclick="showLocalSetup()">🪑 Local Hotseat<br><span style="font-size:11px; opacity:0.7;">Pass one device around</span></button>
+        <button onclick="showHostSetup()">🌐 Host Online<br><span style="font-size:11px; opacity:0.7;">Create a room</span></button>
+      </div>
+      <div class="setup-grid" style="margin-top:8px;">
+        <button onclick="showJoinSetup()">🔗 Join Online<br><span style="font-size:11px; opacity:0.7;">Enter a room code</span></button>
+      </div>
+    </div>
+
+    <!-- Stage 2a: local hotseat -->
+    <div id="setupLocal" style="display:none;">
+      <p style="color:var(--muted); font-size:13px;">Local hotseat — pass the device when prompted.</p>
+      <div style="margin: 16px 0;">
+        <div style="font-size:12px; color:var(--muted); text-transform:uppercase; letter-spacing:1px; margin-bottom:6px;">Mode</div>
+        <div class="setup-grid">
+          <button class="mode-btn" id="modeChill" onclick="setLobbyMode(\'chill\')" style="padding:14px;">🌤️ Chill Mode<br><span style="font-size:11px; opacity:0.7;">No crises — easier</span></button>
+          <button class="mode-btn" id="modeCrisis" onclick="setLobbyMode(\'crisis\')" style="padding:14px;">🌪️ Crisis Mode<br><span style="font-size:11px; opacity:0.7;">Full climate threat</span></button>
+        </div>
+      </div>
+      <div style="font-size:12px; color:var(--muted); text-transform:uppercase; letter-spacing:1px; margin-bottom:6px;">Players</div>
+      <div class="setup-grid">
+        <button onclick="startLocalGame(2)">2 Players</button>
+        <button onclick="startLocalGame(3)">3 Players</button>
+        <button onclick="startLocalGame(4)">4 Players</button>
+      </div>
+      <button class="secondary" style="margin-top:14px;" onclick="showSetupHub()">← Back</button>
+    </div>
+
+    <!-- Stage 2b: host online -->
+    <div id="setupHost" style="display:none;">
+      <p style="color:var(--muted); font-size:13px;">Create a room. Share the code with your friends.</p>
+      <div style="margin:14px 0;">
+        <label style="font-size:12px; color:var(--muted);">Your name</label><br>
+        <input id="hostName" type="text" maxlength="16" style="width:100%; padding:8px; border-radius:4px; border:1px solid #2a4d73; background:var(--panel-2); color:var(--ink); margin-top:4px;" placeholder="e.g. Alice" />
+      </div>
+      <div style="margin:14px 0;">
+        <div style="font-size:12px; color:var(--muted); text-transform:uppercase; letter-spacing:1px; margin-bottom:6px;">Mode</div>
+        <div class="setup-grid">
+          <button class="mode-btn" id="modeChillH" onclick="setLobbyMode(\'chill\')" style="padding:10px;">🌤️ Chill</button>
+          <button class="mode-btn" id="modeCrisisH" onclick="setLobbyMode(\'crisis\')" style="padding:10px;">🌪️ Crisis</button>
+        </div>
+      </div>
+      <button class="good" style="width:100%;" onclick="startHostingRoom()">Create room</button>
+
+      <!-- Lobby (after room created) -->
+      <div id="hostLobby" style="display:none; margin-top:16px; padding-top:14px; border-top:1px solid #1f3d5c;">
+        <p style="color:var(--muted); font-size:12px; margin:0 0 6px 0;">Your room code:</p>
+        <div id="hostCode" style="font-size:28px; font-weight:700; color:var(--accent); letter-spacing:4px; text-align:center; padding:10px; background:var(--panel-2); border-radius:6px;">…</div>
+        <p style="color:var(--muted); font-size:11px; text-align:center; margin:4px 0 12px 0;">Share this code with players. Game starts when you click Start.</p>
+        <div style="font-size:12px; color:var(--muted);">Players in lobby:</div>
+        <div id="hostLobbyList" style="margin:6px 0; padding:8px; background:var(--panel-2); border-radius:4px; min-height:60px; font-size:13px;"></div>
+        <button class="good" id="hostStartBtn" disabled onclick="hostStartGame()">Start game</button>
+      </div>
+      <button class="secondary" style="margin-top:14px;" onclick="showSetupHub()">← Back</button>
+    </div>
+
+    <!-- Stage 2c: join online -->
+    <div id="setupJoin" style="display:none;">
+      <p style="color:var(--muted); font-size:13px;">Join an existing room.</p>
+      <div style="margin:14px 0;">
+        <label style="font-size:12px; color:var(--muted);">Your name</label><br>
+        <input id="joinName" type="text" maxlength="16" style="width:100%; padding:8px; border-radius:4px; border:1px solid #2a4d73; background:var(--panel-2); color:var(--ink); margin-top:4px;" placeholder="e.g. Bob" />
+      </div>
+      <div style="margin:14px 0;">
+        <label style="font-size:12px; color:var(--muted);">Room code</label><br>
+        <input id="joinCode" type="text" maxlength="8" style="width:100%; padding:8px; border-radius:4px; border:1px solid #2a4d73; background:var(--panel-2); color:var(--ink); margin-top:4px; text-transform:uppercase; letter-spacing:3px; font-size:18px; text-align:center;" placeholder="ABCD" />
+      </div>
+      <button class="good" style="width:100%;" onclick="joinRoom()">Join room</button>
+      <div id="joinStatus" style="margin-top:10px; font-size:12px; color:var(--muted); text-align:center;"></div>
+      <button class="secondary" style="margin-top:14px;" onclick="showSetupHub()">← Back</button>
+    </div>
+  </div>
+</div>
+
+<div class="layout">
+  <div>
+    <div class="panel">
+      <h2>Players</h2>
+      <div class="players" id="players"></div>
+    </div>
+
+    <div class="panel">
+      <h2>Table</h2>
+      <div class="center-area">
+        <div class="pile">
+          <div class="count" id="deckCount">0</div>
+          <div class="label">Draw Pile</div>
+          <div id="deckBreakdown" style="font-size:10px; color:var(--muted); margin-top:6px; line-height:1.4;"></div>
+        </div>
+        <div class="pile" id="bossPile">
+          <div class="count" id="bossHp">—</div>
+          <div class="label" id="bossLabel">Boss (inactive)</div>
+          <div id="bossBucketLine" style="font-size:10px; color:var(--muted); margin-top:6px;"></div>
+        </div>
+        <div class="pile">
+          <div class="count" id="discardCount">0</div>
+          <div class="label">Discard</div>
+          <div style="font-size:10px; color:var(--muted); margin-top:6px; line-height:1.4;">Returns to deck when a Crisis or Collapse is drawn.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>Your Hand <span id="currentName" style="color:var(--accent)"></span></h2>
+      <div class="hint-box">
+        <strong>Goal:</strong> First to 5 Trophies wins.<br>
+        <strong>Safe path:</strong> spend a full cycle (Evap+Cond+Precip+Collect) → 1 Trophy.<br>
+        <strong>Risky path:</strong> spend a full cycle into the Bucket → Challenge Boss. Right = 1 dmg + 1 trophy. Wrong = nothing. Killer takes the Bucket.
+      </div>
+      <div class="hand" id="hand"></div>
+      <div class="actions" id="actions"></div>
+    </div>
+  </div>
+
+  <div>
+    <div class="panel">
+      <h2>Game Log</h2>
+      <div class="log" id="log"></div>
+    </div>
+    <div class="panel">
+      <h2>Card Legend</h2>
+      <div style="font-size:12px; line-height:1.8;">
+        <div><span style="color:var(--evap)">■</span> Evaporation — Resource (1/4 of a cycle)</div>
+        <div><span style="color:var(--cond)">■</span> Condensation — Resource (1/4 of a cycle)</div>
+        <div><span style="color:var(--precip)">■</span> Precipitation — Resource (1/4 of a cycle)</div>
+        <div><span style="color:var(--collect)">■</span> Collection — Resource (1/4 of a cycle)</div>
+        <div><span style="color:var(--weather)">■</span> Weather — actions</div>
+        <div><span style="color:var(--emergency)">■</span> Emergency Response — defuses Collapse</div>
+        <div><span style="color:var(--crisis)">■</span> Crisis — explain how any cards solve it; peers vote</div>
+        <div style="color:var(--muted); margin-top:6px; font-size:11px; font-style:italic;">Crises accept any card — the peer vote is the only gate.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<script src="game.js"></script>
+<script>
+// =============================================================
+// Water Cycle Challenge — client.
+//
+// Three play modes, all driven by the same engine (game.js):
+//   • Hotseat: one device, viewer rotates, pass-device interstitials
+//   • Host:    you run the engine locally + relay views to peers
+//   • Join:    you receive views from the host + send intents back
+//
+// All three live behind a `transport` object with the same shape, so the
+// render code below doesn't care which mode it's in.
+// =============================================================
+
+const Game = window.WaterCycleGame;
+
+// ============ GLOBAL CLIENT STATE ============
+let transport = null;
+let selectedCardIds = [];
+let lobbyMode = 'crisis';
+const ROOM_PREFIX = 'wcc-';   // namespace our PeerJS IDs
+
+function $(id) { return document.getElementById(id); }
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function genRoomCode() {
+  // No vowels (avoid accidental words), no similar-looking glyphs.
+  const chars = 'BCDFGHJKLMNPQRSTVWXZ';
+  let out = '';
+  for (let i = 0; i < 4; i++) out += chars[Math.floor(Math.random() * chars.length)];
+  return out;
+}
+
+// =============================================================
+// TRANSPORTS
+// =============================================================
+//
+// Contract:
+//   .getView()         — returns the current view object (for render)
+//   .dispatch(intent)  — fires an intent (local or over the wire)
+//   .getMyIndex()      — my seat number
+//   .isHotseat()       — true when pass-device flow applies
+//   .onChange          — set by the UI; called when the view changes
+//   .onPassDevice      — hotseat only; called when viewer must rotate
+
+class HotseatTransport {
+  constructor(state) {
+    this.state = state;
+    this.viewer = state.current;
+    this.onChange = null;
+    this.onPassDevice = null;
+  }
+  isHotseat() { return true; }
+  getMyIndex() { return this.viewer; }
+  getView() { return Game.viewFor(this.state, this.viewer); }
+  dispatch(intent) {
+    const r = Game.applyIntent(this.state, this.viewer, intent);
+    if (!r.ok) { console.warn('Intent rejected:', r.error, intent); return false; }
+    this._routeViewer();
+    return true;
+  }
+  _routeViewer() {
+    const target = this._nextViewer();
+    if (target !== this.viewer) {
+      this.viewer = target;
+      selectedCardIds = [];
+      if (this.onPassDevice) this.onPassDevice(this.viewer);
+    } else if (this.onChange) this.onChange();
+  }
+  _nextViewer() {
+    if (this.state.winner) return this.viewer;
+    const ap = this.state.activePrompt;
+    if (ap) {
+      if (ap.kind === 'PEER_VOTE') {
+        for (const v of ap.voters) if (ap.collected[v] === undefined) return v;
+        return this.state.current;
+      }
+      if (ap.forPlayer >= 0) return ap.forPlayer;
+      return this.state.current;
+    }
+    return this.state.current;
+  }
+}
+
+class HostTransport {
+  constructor(state, hostIndex, peerConns) {
+    this.state = state;
+    this.myIndex = hostIndex;
+    // peerConns: map from playerIndex → DataConnection (host's own seat is omitted)
+    this.peerConns = peerConns;
+    this.onChange = null;
+  }
+  isHotseat() { return false; }
+  getMyIndex() { return this.myIndex; }
+  getView() { return Game.viewFor(this.state, this.myIndex); }
+  dispatch(intent) {
+    return this._applyAndBroadcast(this.myIndex, intent);
+  }
+  // Called from the host's peer message handler.
+  applyPeerIntent(playerIndex, intent) {
+    return this._applyAndBroadcast(playerIndex, intent);
+  }
+  _applyAndBroadcast(playerIndex, intent) {
+    const r = Game.applyIntent(this.state, playerIndex, intent);
+    if (!r.ok) {
+      console.warn('Intent rejected from', playerIndex, ':', r.error);
+      const conn = this.peerConns[playerIndex];
+      if (conn && conn.open) conn.send({ kind: 'ERROR', message: r.error });
+      return false;
+    }
+    this.broadcast();
+    if (this.onChange) this.onChange();
+    return true;
+  }
+  broadcast() {
+    for (const k in this.peerConns) {
+      const conn = this.peerConns[k];
+      if (!conn || !conn.open) continue;
+      const view = Game.viewFor(this.state, parseInt(k, 10));
+      conn.send({ kind: 'VIEW', view });
+    }
+  }
+  // Called when a peer disconnects mid-game. Mark them as out so the
+  // engine's turn-skip logic carries on without them. Trophies remain
+  // because the rulebook has no elimination penalty for a disconnect.
+  markPlayerOut(playerIndex) {
+    if (!this.state.players[playerIndex]) return;
+    this.state.players[playerIndex].out = true;
+    this.state.log.push({
+      ts: this.state.log.length,
+      msg: this.state.players[playerIndex].name + ' disconnected.',
+      kind: 'info',
+    });
+    this.broadcast();
+    if (this.onChange) this.onChange();
+  }
+}
+
+class ClientTransport {
+  constructor(conn, myIndex) {
+    this.conn = conn;
+    this.myIndex = myIndex;
+    this.view = null;
+    this.onChange = null;
+  }
+  isHotseat() { return false; }
+  getMyIndex() { return this.myIndex; }
+  getView() { return this.view; }
+  setView(view) { this.view = view; if (this.onChange) this.onChange(); }
+  dispatch(intent) {
+    if (!this.conn || !this.conn.open) {
+      console.warn('Connection closed; cannot send intent.');
+      return false;
+    }
+    this.conn.send({ kind: 'INTENT', intent });
+    return true;
+  }
+}
+
+// =============================================================
+// LOBBY
+// =============================================================
+
+let _peer = null;            // PeerJS Peer instance (host or joiner)
+let _hostLobby = [];         // host: [{ name, conn }] in join order; index 0 = host
+let _joinerConn = null;      // joiner: connection to host
+
+function showSetupHub() {
+  $('setupHub').style.display = 'block';
+  $('setupLocal').style.display = 'none';
+  $('setupHost').style.display = 'none';
+  $('setupJoin').style.display = 'none';
+}
+function showLocalSetup() {
+  $('setupHub').style.display = 'none';
+  $('setupLocal').style.display = 'block';
+  applyModeButtonHighlight();
+}
+function showHostSetup() {
+  $('setupHub').style.display = 'none';
+  $('setupHost').style.display = 'block';
+  applyModeButtonHighlight();
+}
+function showJoinSetup() {
+  $('setupHub').style.display = 'none';
+  $('setupJoin').style.display = 'block';
+}
+function setLobbyMode(m) {
+  lobbyMode = m;
+  applyModeButtonHighlight();
+}
+function applyModeButtonHighlight() {
+  ['modeChill', 'modeChillH'].forEach(id => {
+    const el = $(id); if (el) el.classList.toggle('selected', lobbyMode === 'chill');
+  });
+  ['modeCrisis', 'modeCrisisH'].forEach(id => {
+    const el = $(id); if (el) el.classList.toggle('selected', lobbyMode === 'crisis');
+  });
+}
+
+// ----- LOCAL HOTSEAT -----
+function startLocalGame(n) {
+  $('setup').style.display = 'none';
+  const state = Game.createGame({ mode: lobbyMode, playerCount: n });
+  const t = new HotseatTransport(state);
+  t.onChange = render;
+  t.onPassDevice = (idx) => showPassDevice(idx, render);
+  transport = t;
+  showPassDevice(t.viewer, render);
+}
+
+// ----- HOST ONLINE -----
+function startHostingRoom() {
+  const name = ($('hostName').value || '').trim() || 'Host';
+  const code = genRoomCode();
+  $('hostCode').textContent = code;
+  $('hostLobby').style.display = 'block';
+  // Host occupies seat 0.
+  _hostLobby = [{ name, conn: null }];
+  refreshHostLobbyList();
+  bindHostPeer(code);
+}
+
+function bindHostPeer(code) {
+  _peer = new Peer(ROOM_PREFIX + code);
+  _peer.on('open', (id) => { console.log('Host peer opened:', id); });
+  _peer.on('error', (err) => {
+    console.error('Peer error:', err);
+    if (err.type === 'unavailable-id') {
+      // Code collision — pick a new one and try again.
+      _peer.destroy();
+      const newCode = genRoomCode();
+      $('hostCode').textContent = newCode;
+      bindHostPeer(newCode);
+      return;
+    }
+    alert('Network error: ' + (err.type || err.message || err));
+  });
+  _peer.on('connection', handleHostConnection);
+}
+
+function handleHostConnection(conn) {
+  conn.on('open', () => {
+    if (transport) {
+      conn.send({ kind: 'ERROR', message: 'Game already in progress.' });
+      conn.close();
+      return;
+    }
+    if (_hostLobby.length >= 4) {
+      conn.send({ kind: 'ERROR', message: 'Room full.' });
+      conn.close();
+      return;
+    }
+  });
+  conn.on('data', (msg) => {
+    if (!msg || typeof msg !== 'object') return;
+    if (msg.kind === 'JOIN') {
+      if (transport) return;
+      const name = (msg.name || '').toString().trim().slice(0, 16) || ('Player ' + (_hostLobby.length + 1));
+      _hostLobby.push({ name, conn });
+      refreshHostLobbyList();
+      conn.send({ kind: 'WELCOME', playerIndex: _hostLobby.length - 1 });
+      broadcastLobby();
+    } else if (msg.kind === 'INTENT') {
+      if (!transport || !(transport instanceof HostTransport)) return;
+      const seat = findSeatForConn(conn);
+      if (seat < 0) return;
+      transport.applyPeerIntent(seat, msg.intent);
+    }
+  });
+  conn.on('close', () => {
+    if (transport instanceof HostTransport) {
+      const seat = findSeatForConn(conn);
+      if (seat >= 0) transport.markPlayerOut(seat);
+    } else {
+      const idx = _hostLobby.findIndex(p => p.conn === conn);
+      if (idx > 0) {
+        _hostLobby.splice(idx, 1);
+        refreshHostLobbyList();
+        broadcastLobby();
+      }
+    }
+  });
+}
+
+function findSeatForConn(conn) {
+  for (let i = 0; i < _hostLobby.length; i++) {
+    if (_hostLobby[i].conn === conn) return i;
+  }
+  return -1;
+}
+
+function refreshHostLobbyList() {
+  const list = $('hostLobbyList');
+  list.innerHTML = _hostLobby.map((p, i) =>
+    '<div>' + (i === 0 ? '👑 ' : '👤 ') + escapeHtml(p.name) + (i === 0 ? ' (you)' : '') + '</div>'
+  ).join('');
+  $('hostStartBtn').disabled = _hostLobby.length < 2;
+}
+
+function broadcastLobby() {
+  const players = _hostLobby.map((p, i) => ({ index: i, name: p.name }));
+  for (let i = 1; i < _hostLobby.length; i++) {
+    const conn = _hostLobby[i].conn;
+    if (conn && conn.open) conn.send({ kind: 'LOBBY', players });
+  }
+}
+
+function hostStartGame() {
+  if (_hostLobby.length < 2) return;
+  $('setup').style.display = 'none';
+  const playerNames = _hostLobby.map(p => p.name);
+  const state = Game.createGame({
+    mode: lobbyMode,
+    playerCount: _hostLobby.length,
+    playerNames,
+  });
+  const peerConns = {};
+  for (let i = 1; i < _hostLobby.length; i++) {
+    peerConns[i] = _hostLobby[i].conn;
+  }
+  const t = new HostTransport(state, 0, peerConns);
+  t.onChange = render;
+  transport = t;
+  // Tell joiners the game has started, then send their initial views.
+  for (let i = 1; i < _hostLobby.length; i++) {
+    const conn = _hostLobby[i].conn;
+    if (conn && conn.open) {
+      conn.send({ kind: 'GAME_STARTED', myIndex: i });
+    }
+  }
+  t.broadcast();
+  render();
+}
+
+// ----- JOIN ONLINE -----
+function joinRoom() {
+  const name = ($('joinName').value || '').trim() || 'Joiner';
+  const code = ($('joinCode').value || '').trim().toUpperCase();
+  if (!code || code.length < 3) { $('joinStatus').textContent = 'Enter a room code.'; return; }
+  $('joinStatus').textContent = 'Connecting…';
+
+  _peer = new Peer();
+  _peer.on('open', () => {
+    const conn = _peer.connect(ROOM_PREFIX + code, { reliable: true });
+    _joinerConn = conn;
+    let assignedIndex = null;
+    let gameStarted = false;
+    conn.on('open', () => {
+      $('joinStatus').textContent = 'Connected. Waiting for host to start…';
+      conn.send({ kind: 'JOIN', name });
+    });
+    conn.on('data', (msg) => {
+      if (!msg || typeof msg !== 'object') return;
+      if (msg.kind === 'WELCOME') {
+        assignedIndex = msg.playerIndex;
+        $('joinStatus').textContent = 'In lobby. You are Player ' + (assignedIndex + 1) + '.';
+      } else if (msg.kind === 'LOBBY') {
+        $('joinStatus').textContent = 'Lobby: ' + msg.players.map(p => p.name).join(', ');
+      } else if (msg.kind === 'GAME_STARTED') {
+        gameStarted = true;
+        if (msg.myIndex !== undefined) assignedIndex = msg.myIndex;
+        const t = new ClientTransport(conn, assignedIndex);
+        t.onChange = render;
+        transport = t;
+        $('setup').style.display = 'none';
+        // The first VIEW message follows immediately.
+      } else if (msg.kind === 'VIEW') {
+        if (transport instanceof ClientTransport) {
+          transport.setView(msg.view);
+        }
+      } else if (msg.kind === 'ERROR') {
+        console.warn('Host error:', msg.message);
+        if (!gameStarted) $('joinStatus').textContent = 'Error: ' + msg.message;
+        else alert('Server: ' + msg.message);
+      }
+    });
+    conn.on('close', () => {
+      if (gameStarted) alert('Disconnected from host.');
+      else $('joinStatus').textContent = 'Connection closed.';
+    });
+    conn.on('error', (err) => {
+      console.error('Conn error:', err);
+      $('joinStatus').textContent = 'Error: ' + (err.message || err.type || err);
+    });
+  });
+  _peer.on('error', (err) => {
+    console.error('Peer error:', err);
+    $('joinStatus').textContent = 'Network error: ' + (err.type || err.message || err);
+  });
+}
+
+// =============================================================
+// PASS-DEVICE INTERSTITIAL (hotseat only)
+// =============================================================
+
+function showPassDevice(viewerIndex, onContinue) {
+  const v = transport.getView();
+  const name = v.players[viewerIndex].name;
+  const m = document.createElement('div');
+  m.className = 'modal'; m.id = 'passModal';
+  m.innerHTML = '<div class="modal-content" style="text-align:center;">' +
+    '<h3>Pass device to ' + escapeHtml(name) + '</h3>' +
+    '<p style="color:var(--muted);">Others, look away.</p>' +
+    '<button id="passOk">I\'m ' + escapeHtml(name) + ' — Ready</button>' +
+    '</div>';
+  document.body.appendChild(m);
+  m.querySelector('#passOk').onclick = () => { m.remove(); onContinue(); };
+}
+
+// =============================================================
+// DISPATCH HELPER
+// =============================================================
+
+function dispatch(intent) {
+  if (!transport) return false;
+  return transport.dispatch(intent);
+}
+
+// =============================================================
+// RENDER
+// =============================================================
+
+function render() {
+  if (!transport) return;
+  const v = transport.getView();
+  if (!v) return;
+  const myIdx = transport.getMyIndex();
+  renderPlayers(v, myIdx);
+  renderTable(v, myIdx);
+  renderHand(v, myIdx);
+  renderActions(v, myIdx);
+  renderLog(v);
+  renderPromptModal(v, myIdx);
+  if (v.winner) renderWinModal(v);
+}
+
+function renderPlayers(v, myIdx) {
+  $('players').innerHTML = v.players.map(p => `
+    <div class="player ${p.index===v.current?'active':''} ${p.out?'out':''}">
+      <div class="name">${escapeHtml(p.name)}${p.index===myIdx?' (you)':''}</div>
+      <div class="stats"><span class="trophy">🏆 ${p.trophies}/5</span> · 🃏 ${p.handCount}</div>
+    </div>`).join('');
+}
+
+function renderTable(v, myIdx) {
+  $('deckCount').textContent = v.deckCount;
+  $('discardCount').textContent = v.discardCount;
+  $('deckBreakdown').innerHTML =
+    `<span style="color:var(--danger)">⚠ ${v.deckCrises} crisis</span><br>` +
+    `<span style="color:${v.deckCollapses?'var(--danger)':'var(--muted)'}">💥 ${v.deckCollapses} collapse</span>`;
+  if (v.boss) {
+    $('bossHp').textContent = v.boss.hp;
+    $('bossHp').style.color = 'var(--danger)';
+    $('bossLabel').textContent = `Boss · ${v.boss.maxHp} HP max`;
+    $('bossBucketLine').innerHTML =
+      `Bucket: <b>${v.boss.bucketCount}</b> card${v.boss.bucketCount===1?'':'s'} · Killer takes all`;
+  } else {
+    $('bossHp').textContent = '—';
+    $('bossHp').style.color = 'var(--muted)';
+    $('bossLabel').textContent = 'Boss (defeated)';
+    $('bossBucketLine').textContent = 'A new Boss is rising...';
+  }
+  $('currentName').textContent = '— ' + v.players[myIdx].name;
+}
+
+function renderHand(v, myIdx) {
+  const me = v.players[myIdx];
+  if (!me.hand) {
+    $('hand').innerHTML = '<div style="color:var(--muted); padding:20px;">Hand hidden.</div>';
+    return;
+  }
+  $('hand').innerHTML = me.hand.map(c => `
+    <div class="card ${c.type} ${selectedCardIds.includes(c.id)?'selected':''}" data-id="${c.id}">
+      <div class="card-type">${c.type.toUpperCase()}</div>
+      <div class="card-name">${escapeHtml(c.name)}</div>
+      <div class="card-desc">${escapeHtml(c.desc || '')}</div>
+      ${c.flavour ? `<div class="tooltip">
+        <div class="t-title">${escapeHtml(c.name)}</div>
+        <div class="t-rule">${escapeHtml(c.desc || '')}</div>
+        <div class="t-flavour">${escapeHtml(c.flavour)}</div>
+      </div>` : ''}
+    </div>`).join('');
+  $('hand').querySelectorAll('.card').forEach(el => {
+    el.onclick = () => toggleCard(el.dataset.id);
+  });
+}
+
+function toggleCard(id) {
+  if (selectedCardIds.includes(id)) selectedCardIds = selectedCardIds.filter(x => x !== id);
+  else selectedCardIds.push(id);
+  render();
+}
+
+function renderActions(v, myIdx) {
+  const me = v.players[myIdx];
+  const lock = !!v.winner || (v.current !== myIdx) || !!v.activePrompt;
+  const canCycle = me.hand && handHasFullCycle(me.hand);
+  const selectedCard = (selectedCardIds.length === 1 && me.hand)
+    ? me.hand.find(c => c.id === selectedCardIds[0])
+    : null;
+  const canPlayWeather = !lock && !v.weatherPlayed && selectedCard && selectedCard.type === 'weather';
+
+  $('actions').innerHTML = `
+    <button class="good" id="btnTrade" ${(!lock && canCycle && !v.mainActionUsed)?'':'disabled'}>Trade Cycle → Trophy${v.mainActionUsed?' (action used)':''}</button>
+    <button id="btnChallenge" ${(!lock && v.boss && canCycle && !v.mainActionUsed)?'':'disabled'}>Challenge Boss${v.mainActionUsed?' (action used)':v.boss?` (${v.boss.hp} HP · costs cycle)`:' (locked)'}</button>
+    <button class="secondary" id="btnWeather" ${canPlayWeather?'':'disabled'}>Play Weather${v.weatherPlayed?' (used)':''}</button>
+    <button class="danger" id="btnEnd" ${lock?'disabled':''}>Draw & End Turn</button>`;
+  $('btnTrade').onclick = () => dispatch({ type: 'TRADE_CYCLE' });
+  $('btnChallenge').onclick = () => dispatch({ type: 'CHALLENGE_BOSS' });
+  $('btnWeather').onclick = () => {
+    if (selectedCardIds.length === 1) {
+      const cardId = selectedCardIds[0];
+      selectedCardIds = [];
+      dispatch({ type: 'PLAY_WEATHER', cardId });
+    }
+  };
+  $('btnEnd').onclick = () => dispatch({ type: 'END_TURN' });
+}
+
+function handHasFullCycle(hand) {
+  const types = ['evap','cond','precip','collect'];
+  const missing = types.filter(t => !hand.some(c => c.type === t));
+  if (missing.length === 0) return true;
+  if (missing.length === 1 && hand.some(c => c.effect === 'wild')) return true;
+  return false;
+}
+
+function renderLog(v) {
+  $('log').innerHTML = v.log.slice().reverse().map(e =>
+    `<div class="${e.kind || ''}">${escapeHtml(e.msg)}</div>`).join('');
+}
+
+// =============================================================
+// PROMPT MODALS
+// =============================================================
+
+function renderPromptModal(v, myIdx) {
+  const existing = $('promptModal');
+  if (existing) existing.remove();
+  if (!v.activePrompt || v.winner) return;
+  const ap = v.activePrompt;
+  if (!ap.youMustAct) return;
+
+  const m = document.createElement('div');
+  m.className = 'modal'; m.id = 'promptModal';
+  m.innerHTML = renderPromptContent(ap, v, myIdx);
+  document.body.appendChild(m);
+  wirePromptHandlers(m, ap);
+}
+
+function renderPromptContent(ap, v, myIdx) {
+  switch (ap.kind) {
+    case 'BOSS_ANSWER':        return promptBoss(ap);
+    case 'PEEK_RESULT':        return promptPeek(ap);
+    case 'PICK_TARGET':        return promptPickTarget(ap);
+    case 'RESERVOIR_RESPONSE': return promptReservoir(ap, v, myIdx);
+    case 'PICK_DISCARD':       return promptPickDiscard(ap);
+    case 'PIPE_LEAKAGE_PICK':  return promptLeak(ap);
+    case 'PIPE_BURST_PICK':    return promptBurst(ap);
+    case 'CRISIS_CARDS':       return promptCrisis(ap);
+    case 'PEER_VOTE':          return promptVote(ap, v, myIdx);
+    default: return `<div class="modal-content">Unknown prompt: ${escapeHtml(ap.kind)}</div>`;
+  }
+}
+
+function promptBoss(ap) {
+  return `<div class="modal-content" style="border:3px solid var(--danger); max-width:560px;">
+    <h3 style="color:var(--danger); margin-top:0;">⚔️ Boss Challenge — ${ap.payload.bossHp} HP remaining</h3>
+    <p style="font-size:14px; margin:12px 0;">${escapeHtml(ap.payload.question)}</p>
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+      ${ap.payload.choices.map((opt,i)=>`<button class="secondary" data-choice="${i}">${escapeHtml(opt)}</button>`).join('')}
+    </div>
+    <p style="font-size:11px; color:var(--muted); margin-top:10px;">Right: 1 damage + 1 trophy. Wrong: cycle is gone.</p>
+  </div>`;
+}
+
+function promptPeek(ap) {
+  const top3 = ap.payload.cards;
+  return `<div class="modal-content" style="max-width:560px;">
+    <h3>Forecast</h3>
+    <p style="color:var(--muted); font-size:12px;">Next cards to be drawn, top to bottom:</p>
+    <div style="display:flex; flex-direction:column; gap:10px; margin:12px 0;">
+      ${top3.map((c,i)=>`<div style="padding:12px; background:var(--panel-2); border-left:3px solid var(--accent); border-radius:4px;">
+        <div style="display:flex; justify-content:space-between; align-items:baseline;">
+          <div><span style="font-size:10px; color:var(--muted); letter-spacing:1px;">${i===0?'NEXT':'THEN'}</span> <span style="font-weight:700; margin-left:6px;">${escapeHtml(c.name)}</span></div>
+          <span style="font-size:10px; color:var(--muted); text-transform:uppercase;">${c.type}</span>
+        </div>
+        ${c.flavour ? `<div style="font-size:11px; color:var(--muted); margin-top:4px;">${escapeHtml(c.flavour)}</div>` : ''}
+      </div>`).join('')}
+    </div>
+    <div style="text-align:right;"><button id="peekOk">Got it</button></div>
+  </div>`;
+}
+
+function promptPickTarget(ap) {
+  return `<div class="modal-content">
+    <h3>${escapeHtml(ap.payload.attackName)} — Pick a target</h3>
+    <div style="display:grid; gap:8px;">
+      ${ap.payload.options.map(o=>`<button data-target="${o.index}">${escapeHtml(o.name)} (${o.handCount} cards, 🏆${o.trophies})</button>`).join('')}
+    </div>
+  </div>`;
+}
+
+function promptReservoir(ap, v, myIdx) {
+  return `<div class="modal-content">
+    <h3>${escapeHtml(v.players[myIdx].name)} — Targeted by ${escapeHtml(ap.payload.attackName)}</h3>
+    <p style="color:var(--muted);">${escapeHtml(ap.payload.attackerName)} attacked you. Use Reservoir to cancel?</p>
+    <div style="display:flex; gap:8px; justify-content:flex-end;">
+      <button class="secondary" id="resvNo">No, let it hit</button>
+      <button class="good" id="resvYes">Yes, Reservoir!</button>
+    </div>
+  </div>`;
+}
+
+function promptPickDiscard(ap) {
+  return `<div class="modal-content">
+    <h3>${escapeHtml(ap.payload.sourceName)}</h3>
+    <p style="color:var(--muted);">Choose <b>${ap.payload.count}</b> card(s) to discard. <span id="discardCounter">(0/${ap.payload.count})</span></p>
+    <div id="discardList" style="display:grid; grid-template-columns:repeat(2,1fr); gap:6px; max-height:360px; overflow-y:auto;">
+      ${ap.payload.cards.map(c=>`<button class="secondary" data-id="${c.id}">${escapeHtml(c.name)} <span style="color:var(--muted);font-size:10px">(${c.type})</span></button>`).join('')}
+    </div>
+    <div style="margin-top:12px; text-align:right;">
+      <button id="discardConfirm" disabled>Confirm</button>
+    </div>
+  </div>`;
+}
+
+function promptLeak(ap) {
+  return `<div class="modal-content">
+    <h3>Pipe Leakage</h3>
+    <p style="color:var(--muted); font-size:12px;">${escapeHtml(ap.payload.attackerName)} pipe-leaked you. Choose <b>1</b> card to feed to the Boss's Bucket.</p>
+    <div style="display:grid; grid-template-columns:repeat(2,1fr); gap:6px; max-height:360px; overflow-y:auto;">
+      ${ap.payload.cards.map(c=>`<button class="secondary" data-id="${c.id}">${escapeHtml(c.name)} <span style="color:var(--muted);font-size:10px">(${c.type})</span></button>`).join('')}
+    </div>
+  </div>`;
+}
+
+function promptBurst(ap) {
+  return `<div class="modal-content">
+    <h3>${escapeHtml(ap.payload.targetName)}'s Hand — Pick one to take</h3>
+    <div style="display:grid; gap:6px;">
+      ${ap.payload.cards.map(c=>`<button data-id="${c.id}">${escapeHtml(c.name)} <span style="color:var(--muted)">(${c.type})</span></button>`).join('')}
+    </div>
+  </div>`;
+}
+
+function promptCrisis(ap) {
+  const usable = ap.payload.hand.filter(c =>
+    c.type !== 'crisis' && c.type !== 'collapse' && c.type !== 'emergency');
+  return `<div class="modal-content" style="border:3px solid var(--danger); max-width:560px;">
+    <h3 style="color:var(--danger); margin-top:0;">⚠️ CRISIS — ${escapeHtml(ap.payload.crisisName)}</h3>
+    <p style="font-style:italic; color:var(--muted); font-size:12px;">${escapeHtml(ap.payload.crisisFlavour)}</p>
+    <p style="color:var(--muted); font-size:12px; margin-top:10px;">Pick at least <b>1</b> card. Any card works — you just need to convince the table it addresses the crisis. More cards = bigger bonus on pass (up to 3).</p>
+    <div id="crisisList" style="display:grid; grid-template-columns:repeat(2,1fr); gap:6px; margin:10px 0; max-height:260px; overflow-y:auto;">
+      ${usable.map(c=>`<button class="secondary" data-id="${c.id}">${escapeHtml(c.name)}<br><span style="color:var(--muted);font-size:10px">(${c.type})</span></button>`).join('')}
+    </div>
+    <p id="crisisCounter" style="font-size:11px; color:var(--warn);">Need at least 1.</p>
+    <div style="text-align:right;">
+      <button class="secondary" style="margin-right:8px;" id="crisisGiveUp">Give Up (wipe hand)</button>
+      <button id="crisisConfirm" disabled>Resolve Crisis</button>
+    </div>
+  </div>`;
+}
+
+function promptVote(ap, v, myIdx) {
+  const cardsList = ap.payload.cardsSpent.map(c => c.name).join(' + ');
+  return `<div class="modal-content" style="text-align:center;">
+    <h3 style="color:var(--accent); margin-top:0;">🗣️ Peer Check — voting as ${escapeHtml(v.players[myIdx].name)}</h3>
+    <p style="font-size:14px;">Did <b>${escapeHtml(ap.payload.defenderName)}</b> convincingly explain how their cards solve <b>${escapeHtml(ap.payload.crisisName)}</b>?</p>
+    <p style="color:var(--muted); font-size:12px;">Cards spent: ${escapeHtml(cardsList)}</p>
+    <p style="color:var(--danger); font-size:11px;"><b>⚠️ Failed vote = entire hand wiped!</b></p>
+    <div style="display:flex; gap:10px; justify-content:center; margin-top:14px;">
+      <button class="danger" id="voteNo">👎 Not quite</button>
+      <button class="good" id="voteYes">👍 Good explanation</button>
+    </div>
+  </div>`;
+}
+
+function wirePromptHandlers(m, ap) {
+  const respond = (value) => dispatch({ type: 'PROMPT_RESPONSE', promptId: ap.id, value });
+  switch (ap.kind) {
+    case 'BOSS_ANSWER':
+      m.querySelectorAll('[data-choice]').forEach(b => {
+        b.onclick = () => respond({ choice: parseInt(b.dataset.choice, 10) });
+      });
+      break;
+    case 'PEEK_RESULT':
+      m.querySelector('#peekOk').onclick = () => respond({});
+      break;
+    case 'PICK_TARGET':
+      m.querySelectorAll('[data-target]').forEach(b => {
+        b.onclick = () => respond({ targetIndex: parseInt(b.dataset.target, 10) });
+      });
+      break;
+    case 'RESERVOIR_RESPONSE':
+      m.querySelector('#resvYes').onclick = () => respond({ cancel: true });
+      m.querySelector('#resvNo').onclick  = () => respond({ cancel: false });
+      break;
+    case 'PICK_DISCARD': {
+      const sel = new Set();
+      const need = ap.payload.count;
+      const counter = m.querySelector('#discardCounter');
+      const confirm = m.querySelector('#discardConfirm');
+      m.querySelectorAll('#discardList button').forEach(b => {
+        b.onclick = () => {
+          const id = b.dataset.id;
+          if (sel.has(id)) { sel.delete(id); b.classList.remove('good'); b.classList.add('secondary'); }
+          else if (sel.size < need) { sel.add(id); b.classList.add('good'); b.classList.remove('secondary'); }
+          counter.textContent = `(${sel.size}/${need})`;
+          confirm.disabled = sel.size !== need;
+        };
+      });
+      confirm.onclick = () => respond({ cardIds: [...sel] });
+      break;
+    }
+    case 'PIPE_LEAKAGE_PICK':
+      m.querySelectorAll('[data-id]').forEach(b => {
+        b.onclick = () => respond({ cardId: b.dataset.id });
+      });
+      break;
+    case 'PIPE_BURST_PICK':
+      m.querySelectorAll('[data-id]').forEach(b => {
+        b.onclick = () => respond({ cardId: b.dataset.id });
+      });
+      break;
+    case 'CRISIS_CARDS': {
+      const sel = new Set();
+      const counter = m.querySelector('#crisisCounter');
+      const confirm = m.querySelector('#crisisConfirm');
+      m.querySelectorAll('#crisisList button').forEach(b => {
+        b.onclick = () => {
+          const id = b.dataset.id;
+          if (sel.has(id)) { sel.delete(id); b.classList.remove('good'); b.classList.add('secondary'); }
+          else { sel.add(id); b.classList.add('good'); b.classList.remove('secondary'); }
+          if (sel.size >= 1) {
+            counter.style.color = 'var(--good)';
+            counter.textContent = `✓ ${sel.size} card(s) selected`;
+            confirm.disabled = false;
+          } else {
+            counter.style.color = 'var(--warn)';
+            counter.textContent = 'Need at least 1.';
+            confirm.disabled = true;
+          }
+        };
+      });
+      confirm.onclick = () => respond({ cardIds: [...sel] });
+      m.querySelector('#crisisGiveUp').onclick = () => respond({ giveUp: true });
+      break;
+    }
+    case 'PEER_VOTE':
+      m.querySelector('#voteYes').onclick = () => respond({ pass: true });
+      m.querySelector('#voteNo').onclick  = () => respond({ pass: false });
+      break;
+  }
+}
+
+function renderWinModal(v) {
+  if ($('winModal')) return;
+  const m = document.createElement('div');
+  m.className = 'modal'; m.id = 'winModal';
+  m.innerHTML = `<div class="modal-content" style="text-align:center; border:2px solid var(--accent);">
+    <h3 style="color:var(--accent); margin-top:0;">🏆 Game Over</h3>
+    <p style="font-size:15px; margin:14px 0;">${escapeHtml(v.winner.playerName)} wins! <span style="color:var(--muted); font-size:12px;">(${escapeHtml(v.winner.reason)})</span></p>
+    <button class="good" onclick="location.reload()">Play again</button>
+  </div>`;
+  document.body.appendChild(m);
+}
+
+// =============================================================
+// INIT
+// =============================================================
+
+// Inline onclick handlers in the lobby markup call these.
+window.showSetupHub = showSetupHub;
+window.showLocalSetup = showLocalSetup;
+window.showHostSetup = showHostSetup;
+window.showJoinSetup = showJoinSetup;
+window.setLobbyMode = setLobbyMode;
+window.startLocalGame = startLocalGame;
+window.startHostingRoom = startHostingRoom;
+window.joinRoom = joinRoom;
+window.hostStartGame = hostStartGame;
+
+window.addEventListener('load', () => {
+  setLobbyMode('crisis');
+  showSetupHub();
+});
+
+</script>
+</body>
+</html>
