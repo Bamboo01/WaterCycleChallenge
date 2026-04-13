@@ -89,7 +89,7 @@ Discarded cards go into a discard pile next to the draw pile. When a Crisis or C
 | **Evaporation Surge** | Pick a player. They choose and discard 2 cards from their own hand. |
 | **Pipe Burst** | Pick a player. Look at their hand, take 1 card. |
 | **Pipe Leakage** | Pick a player. They choose 1 card to put into the Boss's Bucket. |
-| **Water Rationing** | Everyone (including you) shuffles their hand into the deck and draws 5 fresh cards. |
+| **Water Rationing** | Everyone (including you) shuffles their hand into the deck and refills back to 5 cards. Emergency Response cards are kept. |
 
 ### Quick tips for new players
 

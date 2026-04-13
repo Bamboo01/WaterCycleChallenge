@@ -87,7 +87,7 @@
       flavour: 'Old pipes weep water into the ground. What is lost from the system becomes a liability — and liabilities accumulate until someone settles them.' },
     { type: 'weather', name: 'Pipe Burst',        effect: 'pickSteal',    desc: "Look at a player's hand, take 1 card",
       flavour: 'Old infrastructure fails. PUB replaces pipes constantly to keep Singapore\'s water loop tight.' },
-    { type: 'weather', name: 'Water Rationing',   effect: 'ration',       desc: 'Everyone shuffles their hand into the deck and draws 5 fresh cards',
+    { type: 'weather', name: 'Water Rationing',   effect: 'ration',       desc: 'Everyone resets to 5 cards (Emergency Response is kept)',
       flavour: 'Singapore rationed water during the 1963-64 drought. A reminder of why water security matters.' },
   ];
 
@@ -626,7 +626,8 @@
     });
     shuffleInPlace(state.deck, state);
     alive.forEach(p => {
-      for (let i = 0; i < 5; i++) {
+      const need = Math.max(0, 5 - p.hand.length);
+      for (let i = 0; i < need; i++) {
         const c = drawNoCrisis(state);
         if (!c) break;
         p.hand.push(c);

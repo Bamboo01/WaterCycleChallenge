@@ -345,7 +345,7 @@ test('peek returns top 3 cards in draw order', () => {
 });
 
 section('10. water rationing');
-test('rationing wipes everyone to 5 + ER preserved', () => {
+test('rationing resets everyone to 5 cards total with ER preserved', () => {
   const s = Game.createGame({ mode: 'crisis', playerCount: 3, seed: 29 });
   for (let i = 0; i < s.deck.length; i++) {
     if (s.deck[i].name === 'Water Rationing') {
@@ -356,10 +356,8 @@ test('rationing wipes everyone to 5 + ER preserved', () => {
   const r = s.players[0].hand.find(c => c.name === 'Water Rationing');
   Game.applyIntent(s, 0, { type: 'PLAY_WEATHER', cardId: r.id });
   for (const p of s.players) {
-    const er = p.hand.filter(c => c.type === 'emergency').length;
-    const non = p.hand.filter(c => c.type !== 'emergency').length;
-    assertEq(er, 1, p.name + ' kept ER');
-    assertEq(non, 5, p.name + ' refilled to 5');
+    assertEq(p.hand.length, 5, p.name + ' has exactly 5 cards');
+    assertEq(p.hand.filter(c => c.type === 'emergency').length, 1, p.name + ' kept ER');
   }
 });
 
