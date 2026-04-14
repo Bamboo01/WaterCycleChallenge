@@ -125,6 +125,35 @@
   }
   .modal h3 { margin-top: 0; color: var(--accent); }
 
+  .rulebook-content {
+    max-width: 720px; max-height: 85vh; display: flex; flex-direction: column;
+  }
+  .rulebook-scroll {
+    overflow-y: auto; padding-right: 8px; font-size: 13px; line-height: 1.55;
+  }
+  .rulebook-scroll h4 {
+    color: var(--accent); margin: 16px 0 6px 0; font-size: 13px;
+    text-transform: uppercase; letter-spacing: 1.2px;
+  }
+  .rulebook-scroll h4:first-child { margin-top: 0; }
+  .rulebook-scroll p { margin: 6px 0; color: var(--ink); }
+  .rulebook-scroll ul { margin: 6px 0; padding-left: 20px; color: var(--ink); }
+  .rulebook-scroll li { margin: 4px 0; }
+  .rulebook-scroll .rb-note {
+    background: #1a3015; border-left: 3px solid var(--warn);
+    padding: 8px 10px; margin: 8px 0; font-size: 12px; border-radius: 4px;
+  }
+  .rulebook-scroll table {
+    width: 100%; border-collapse: collapse; margin: 8px 0; font-size: 12px;
+  }
+  .rulebook-scroll th, .rulebook-scroll td {
+    text-align: left; padding: 6px 8px; border-bottom: 1px solid #1f3d5c;
+  }
+  .rulebook-scroll th { color: var(--muted); text-transform: uppercase; letter-spacing: 1px; font-size: 10px; }
+  .rulebook-close {
+    margin-top: 12px; align-self: flex-end;
+  }
+
   .setup-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 16px 0; }
   .setup-grid button { padding: 20px; font-size: 16px; }
 
@@ -166,8 +195,104 @@
     <h1>Water Cycle <span class="accent">Challenge</span></h1>
     <div class="subtitle">Hotseat demo · pass the device between players</div>
   </div>
-  <button class="secondary" onclick="location.reload()">Reset</button>
+  <div style="display:flex; gap:8px;">
+    <button class="secondary" onclick="openRulebook()">📖 Rules</button>
+    <button class="secondary" onclick="location.reload()">Reset</button>
+  </div>
 </header>
+
+<div id="rulebookModal" class="modal" style="display:none;" onclick="if(event.target===this)closeRulebook()">
+  <div class="modal-content rulebook-content">
+    <h3>Water Cycle Challenge — Rulebook</h3>
+    <div class="rulebook-scroll">
+      <p style="color:var(--muted);">2–4 players · Ages 7–12 · ~20 minutes</p>
+
+      <h4>Goal</h4>
+      <p>Be the first player to collect <strong>5 trophies 🏆</strong>.</p>
+
+      <h4>Setup</h4>
+      <ul>
+        <li>Each player starts with 1 <strong>Emergency Response</strong> card, kept face-up.</li>
+        <li>Each player is dealt a hidden hand of 5 cards.</li>
+        <li><strong>Crisis Mode:</strong> the deck includes Crisis cards (2 per extra player + 2: 4 for 2P, 6 for 3P, 8 for 4P) plus the <strong>Reservoir Collapse</strong>.</li>
+        <li>The <strong>Boss</strong> starts with 3 HP and is active from turn 1. Each time the Boss is defeated it returns with +1 HP, up to a maximum of 5.</li>
+      </ul>
+
+      <h4>On Your Turn</h4>
+      <ul>
+        <li>Optionally play <strong>one Weather card</strong> (max one per turn).</li>
+        <li>Optionally take <strong>one Main Action</strong>:
+          <ul>
+            <li><strong>Trade Cycle → Trophy:</strong> discard a full Cycle (Evap + Cond + Precip + Collect) and take 1 trophy.</li>
+            <li><strong>Challenge the Boss:</strong> add a full Cycle to the Boss's Bucket, then answer a trivia question.
+              <ul>
+                <li>✓ <strong>Correct</strong> — deal 1 damage and take 1 trophy. If the Boss dies, take +1 trophy AND the entire Bucket into your hand.</li>
+                <li>✗ <strong>Wrong</strong> — your Cycle stays in the Bucket. Nothing else happens.</li>
+              </ul>
+            </li>
+          </ul>
+        </li>
+        <li>Then <strong>draw 2 cards</strong> and end your turn. If your hand is empty, draw 5 instead.</li>
+        <li>If you draw a Crisis or Collapse, resolve it immediately.</li>
+      </ul>
+
+      <h4>How to Survive a Crisis</h4>
+      <ul>
+        <li>Stop drawing and resolve the Crisis now.</li>
+        <li>Pick at least 1 card from your hand — any card works — and explain how it addresses the disaster.</li>
+        <li>The other players vote thumbs up or thumbs down.</li>
+        <li><strong>Pass:</strong> draw bonus cards equal to cards spent (up to 3). Discard the Crisis.</li>
+        <li><strong>Fail / Give Up:</strong> shuffle your whole hand into the deck, draw 5 fresh, and the Crisis is reshuffled back in.</li>
+      </ul>
+      <div class="rb-note">If you draw 2 Crises at once, you only need to answer 1. The other goes back into the deck.</div>
+
+      <h4>Reservoir Collapse</h4>
+      <ul>
+        <li>Play your <strong>Emergency Response</strong> to survive. It's removed from the game and the Collapse is reshuffled into the deck.</li>
+        <li>If you can't defuse it: lose ALL your trophies and your entire hand, then draw 5 fresh. The Collapse is reshuffled — it can come back.</li>
+        <li>If you draw a Crisis and a Collapse together, ignore the Crisis.</li>
+      </ul>
+
+      <h4>The Discard Pile</h4>
+      <p>Discarded cards form a pile next to the draw pile. When a Crisis or Collapse is resolved, the entire discard pile is shuffled back into the draw pile (along with the threat). If both piles are ever empty, the game ends — whoever has the most trophies wins.</p>
+
+      <h4>Card Reference</h4>
+      <table>
+        <tr><th>Type</th><th>Copies</th><th>Effect</th></tr>
+        <tr><td>Resources (Evap / Cond / Precip / Collect)</td><td>6 of each</td><td>One of each = a full Cycle. Spend a Cycle to trade for a trophy or challenge the Boss.</td></tr>
+        <tr><td>Weather</td><td>3 of each (×10 kinds)</td><td>Action cards — see below.</td></tr>
+        <tr><td>Crisis</td><td>Scales with players</td><td>A disaster you drew. Resolve immediately.</td></tr>
+        <tr><td>Reservoir Collapse</td><td>1</td><td>The bomb. Play your Emergency Response or lose everything.</td></tr>
+        <tr><td>Emergency Response</td><td>1 per player</td><td>Defuses a Reservoir Collapse. Dealt at start.</td></tr>
+      </table>
+
+      <h4>Weather Cards</h4>
+      <table>
+        <tr><th>Card</th><th>Effect</th></tr>
+        <tr><td>Monsoon</td><td>Draw 2 extra cards right now.</td></tr>
+        <tr><td>Forecast</td><td>Peek at the top 3 cards of the draw pile. Don't show anyone.</td></tr>
+        <tr><td>NEWater</td><td>Wild card — substitutes for any ONE missing Resource when you spend a Cycle.</td></tr>
+        <tr><td>Reservoir</td><td>Keep in hand. When someone targets you with a Weather card, play this to cancel it.</td></tr>
+        <tr><td>Dry Spell</td><td>Pick a player. They skip their next turn.</td></tr>
+        <tr><td>Diversion</td><td>Pick a player. Take one random card from their hand.</td></tr>
+        <tr><td>Evaporation Surge</td><td>Pick a player. They choose and discard 2 cards from their own hand.</td></tr>
+        <tr><td>Pipe Burst</td><td>Pick a player. Look at their hand, take 1 card.</td></tr>
+        <tr><td>Pipe Leakage</td><td>Pick a player. They choose 1 card to put into the Boss's Bucket.</td></tr>
+        <tr><td>Water Rationing</td><td>Everyone (including you) shuffles their hand into the deck and refills back to 5. Emergency Response cards are kept.</td></tr>
+      </table>
+
+      <h4>Quick Tips</h4>
+      <ul>
+        <li>Trading a Cycle for a trophy is safe. Challenging the Boss is risky — but the Bucket grows every time someone attacks, and whoever kills it claims the whole pile.</li>
+        <li>Save your Emergency Response. You only get one, and the Reservoir Collapse can strike at any time.</li>
+        <li>Hold onto Reservoir cards — they're the only way to cancel someone else's Weather attack.</li>
+        <li>NEWater is precious. It lets you complete a Cycle when you're missing one Resource.</li>
+        <li>For your Crisis explanation: be creative! The other players are the judges.</li>
+      </ul>
+    </div>
+    <button class="rulebook-close" onclick="closeRulebook()">Close</button>
+  </div>
+</div>
 
 <div id="setup" class="modal">
   <div class="modal-content" style="max-width:520px;">
@@ -486,6 +611,12 @@ function showSetupHub() {
   $('setupHost').style.display = 'none';
   $('setupJoin').style.display = 'none';
 }
+function openRulebook() { $('rulebookModal').style.display = 'flex'; }
+function closeRulebook() { $('rulebookModal').style.display = 'none'; }
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && $('rulebookModal').style.display === 'flex') closeRulebook();
+});
+
 function showLocalSetup() {
   $('setupHub').style.display = 'none';
   $('setupLocal').style.display = 'block';
